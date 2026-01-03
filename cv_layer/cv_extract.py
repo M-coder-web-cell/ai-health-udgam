@@ -1,5 +1,6 @@
 from cv_layer.ocr import extract_text_from_image
 from cv_layer.llm_parser import parse_with_llm
+from cv_layer.image_enhancement import enhance_image
 
 def analyze_product(image_path: str) -> dict:
     ocr_text = extract_text_from_image(image_path)
@@ -8,6 +9,7 @@ def analyze_product(image_path: str) -> dict:
 
 
 if __name__ == "__main__":
-    image_path = "/Users/kritimantalukdar/Desktop/udgam/packet-1.jpg"
-    output = analyze_product(image_path)
+    image_path = ""
+    image =  enhance_image(image_path)
+    output = analyze_product(image)
     print(output)
