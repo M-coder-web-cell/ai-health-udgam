@@ -1,0 +1,25 @@
+# --- Environments ---
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+
+# --- Security (CRITICAL) ---
+# Never commit your API keys!
+.env
+.env.local
+
+# --- IDEs/Editors ---
+.vscode/
+.idea/
+.DS_Store
+
+# --- Project Specific ---
+# If you save uploaded images temporarily
+uploads/
+temp/
+*.log
+
+# --- Streamlit ---
+.streamlit/secrets.toml
