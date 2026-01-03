@@ -3,7 +3,7 @@ from fastapi import FastAPI, Query
 from fastapi.responses import StreamingResponse
 from db import init_db, save_state, load_state
 from cv_layer.cv_extract import analyze_product
-from core.agent.loop import Agent
+from core.loop import Agent
 from scripts.interactive_agent import interactive_agent
 from model import UserProfile, AgentState
 import json
