@@ -27,12 +27,23 @@ class Agent:
             state.plan = plan_dict.get("reasoning", "")
             state.search_needed = plan_dict.get("needs_search", False)
             state.search_queries = plan_dict.get("search_queries", [])
+
+            #update the userprofile from the query given by user
+            state.user_profile.allergies.extend(plan_dict.get("extracted_entities").get("allergies"))
+            state.user_profile.conditions.extend(plan_dict.get("extracted_entities").get("conditions"))
+            state.user_profile.conditions.extend(plan_dict.get("extracted_entities").get("goals"))
+
+            #remove duplicates by converting to set then converting to list again
+            state.user_profile.conditions = list(set(state.user.conditions))
+            state.user_profile.allergies = list(set(state.user_profile.allergies))
+            state.user_profile.goals = list(set(state.user_profile.goals))
+            
         except Exception as e:
             state.plan = f"Infer error: {e}"
             state.search_needed = True
             state.search_queries = [current_input]
 
-        # Step 2: Search
+
         if state.search_needed:
             results = []
             for query in state.search_queries:
