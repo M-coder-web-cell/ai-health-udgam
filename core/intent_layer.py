@@ -1,3 +1,7 @@
+import openai, json, os
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
 SYSTEM_PROMPT = """
 Based on product and consumer persona:
 - infer concerns
