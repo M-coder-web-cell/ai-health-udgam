@@ -1,4 +1,6 @@
-easyocr==1.7
-opencv-python>=4.8.0
-numpy>=1.25.0
-torch>=2.2.0
+opencv-python
+easyocr
+torch
+numpy
+openai
+python-dotenv
