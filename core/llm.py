@@ -15,7 +15,7 @@ class llm:
         model=self.model_name,
         contents=prompt)
 
-        return response.candidates[0].content
+        return response.text
 
     def askwithsearch(self, prompt: str) -> str:
         grounding_tool = types.Tool(

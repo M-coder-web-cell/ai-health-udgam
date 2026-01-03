@@ -3,13 +3,21 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
-
 exa = Exa(os.getenv('EXA_API_KEY'))
 
-result = exa.stream_answer(
-  "What are the health impacts of azelaic acid with correspondence to acne?",
-  text=True,
-)
+def web_search(query):
+    result = exa.stream_answer(
+        query,
+        text=True,
+    )
+    
+    full_response = []
+    for chunk in result:
+        # Collect chunks to return as a full string
+        full_response.append(str(chunk))
+        
+    return "".join(full_response)
 
-for chunk in result:
-    print(chunk, end="", flush=True)
+# Example call:
+# content = web_search("What are the health impacts of azelaic acid?")
+# print(content)
