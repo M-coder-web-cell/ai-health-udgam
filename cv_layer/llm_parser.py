@@ -1,8 +1,17 @@
 import json
-import openai
 import os
+from dotenv import load_dotenv
+import google.generativeai as genai
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Load env
+load_dotenv()
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if not GOOGLE_API_KEY:
+    raise ValueError("GOOGLE_API_KEY not set")
+
+# Configure Gemini
+genai.configure(api_key=GOOGLE_API_KEY)
 
 SYSTEM_PROMPT = """
 You are an information extraction system.
@@ -21,19 +30,20 @@ Rules:
 - Output ONLY valid JSON
 """
 
-def parse_with_llm(ocr_text: str) -> dict:
-    response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": ocr_text}
-        ],
-        temperature=0
+model = genai.GenerativeModel(
+    model_name="gemini-flash-lite-latest",
+    generation_config={
+        "temperature": 0.0,
+        "response_mime_type": "application/json"
+    }
+)
+
+def parse_with_gemini(ocr_text: str) -> dict:
+    response = model.generate_content(
+        f"{SYSTEM_PROMPT}\n\nOCR Text:\n{ocr_text}"
     )
 
-    content = response.choices[0].message.content.strip()
-
     try:
-        return json.loads(content)
+        return json.loads(response.text)
     except json.JSONDecodeError:
-        raise ValueError("LLM did not return valid JSON")
+        raise ValueError(f"Invalid JSON from Gemini:\n{response.text}")
