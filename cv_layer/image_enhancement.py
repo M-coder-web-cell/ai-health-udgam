@@ -1,14 +1,6 @@
 import cv2
 import numpy as np
 
-
-import cv2
-import numpy as np
-
-
-import cv2
-import numpy as np
-
 def enhance_image(image_path):
     img = cv2.imread(image_path)
     if img is None:
