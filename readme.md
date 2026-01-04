@@ -1,4 +1,4 @@
-# AI-Health-Udgam: The Brain 🧠
+# AI-Health-Udgam: Core Engine
 
 This Branch contains the core cognitive engine ("The Brain") for **AI-Health-Udgam**. It is a lightweight, modular backend designed to process health queries using a **3-Step Reasoning & Action (ReAct)** loop.
 
@@ -23,7 +23,7 @@ ai-health-udgam/
 ├── core/
 │   ├── llm.py           # Wrapper class for LLM API calls (OpenAI/Anthropic)
 │   ├── loop.py          # The main 3-step Reasoning Engine (Think-Act-Observe)
-│   ├── search.py        # Functions to execute Web Search (Google/SerpAPI)
+│   ├── search.py        # Functions to execute Web Search (Google/Exa.ai)
 │   ├── prompts.py       # System prompts, templates, and safety guardrails
 │   └── model.py         # Data structures (Pydantic models) for validation
 ├── main.py              # Entry point to run the Brain locally
