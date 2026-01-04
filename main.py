@@ -8,6 +8,7 @@ import uvicorn
 app = FastAPI()
 agent = Agent()
 
+
 @app.post("/process", response_model=AgentState)
 async def process_agent(state: AgentState):
     """
@@ -25,21 +26,20 @@ UPLOAD_DIR = "server_storage"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.post("/upload")
-async def upload_to_disk(file: UploadFile = File(...)):
-    # 1. Validate file type
+async def upload_to_disk(state : AgentState, file: UploadFile = File(...)):
+
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
-    # 2. Generate a unique filename to prevent overwriting
     extension = os.path.splitext(file.filename)[1]
     unique_filename = f"{uuid.uuid4()}{extension}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
-    # 3. Write chunks to disk (Memory efficient)
     with open(file_path, "wb") as buffer:
-        while content := await file.read(1024 * 1024): # Read 1MB at a time
+        while content := await file.read(1024 * 1024): 
             buffer.write(content)
 
+    state.image_path = file_path
     return {"filename": unique_filename, "path": file_path}
 
 if __name__ == "__main__":
