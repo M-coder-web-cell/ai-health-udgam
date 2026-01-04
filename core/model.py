@@ -21,3 +21,4 @@ class AgentState(BaseModel):
     final_verdict: Optional[str] = None
     reasoning: Optional[str] = None
     next_suggestion: List[str] = [] # Defaults to empty list
+    conversation_summary: Optional[str] = None

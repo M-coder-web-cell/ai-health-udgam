@@ -64,6 +64,8 @@ class Agent:
             state.final_verdict = response_dict.get("verdict")
             state.reasoning = response_dict.get("reasoning")
             state.next_suggestion = response_dict.get("suggested_next_steps", [])
+            state.conversation_summary = response_dict.get("conversation_summary", "")
+            
         except Exception as e:
             state.final_verdict = "INFO"
             state.reasoning = f"Synthesis error: {e}"
