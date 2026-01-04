@@ -24,7 +24,7 @@ def analyze_product(image_path: str) -> dict:
     # Step 3: Gemini LLM parsing (raw JSON)
     parsed_dict = parse_with_gemini(ocr_text)
 
-    return parsed_dict
+    return parsed_dict, ocr_text
 
 
 if __name__ == "__main__":
