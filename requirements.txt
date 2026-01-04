@@ -3,3 +3,10 @@ google-genai
 pydantic
 exa_py
 fastapi
+opencv-python
+easyocr
+torch
+numpy
+openai
+python-dotenv
+uvicorn
