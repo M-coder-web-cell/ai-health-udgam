@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg-0: var(--bg-0);
+  --color-bg-000: var(--bg-000);
+  --color-bg-100: var(--bg-100);
+  --color-bg-200: var(--bg-200);
+  --color-bg-300: var(--bg-300);
+  --color-text-100: var(--text-100);
+  --color-text-200: var(--text-200);
+  --color-text-300: var(--text-300);
+  --color-text-400: var(--text-400);
+  --color-text-500: var(--text-500);
+  --color-accent-hover: var(--accent-hover);
+  --font-serif: "Source Serif 4", Georgia, serif;
+  --font-sans: "Inter", "Onest", system-ui, sans-serif;
+  --shadow-input: 0 1px 2px -1px rgba(0, 0, 0, 0.08), 0 2px 8px -2px rgba(0, 0, 0, 0.04);
+  --shadow-input-hover: 0 1px 2px -1px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  --shadow-input-focus: 0 0 0 2px rgba(217, 119, 87, 0.1), 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  --color-background: var(--bg-0);
+  --color-foreground: var(--text-100);
+  --color-card: var(--bg-100);
+  --color-card-foreground: var(--text-100);
+  --color-popover: var(--bg-100);
+  --color-popover-foreground: var(--text-100);
+  --color-primary: var(--text-100);
+  --color-primary-foreground: var(--bg-0);
+  --color-secondary: var(--bg-200);
+  --color-secondary-foreground: var(--text-100);
+  --color-muted: var(--bg-200);
+  --color-muted-foreground: var(--text-400);
+  --color-accent-foreground: var(--bg-0);
+  --color-destructive: oklch(0.577 0.245 27.325);
+  --color-border: var(--bg-300);
+  --color-input: var(--bg-300);
+  --color-ring: var(--accent);
+}
+
+:root {
+  --bg-0: #F8F9FA;
+  --bg-000: #F8F9FA;
+  --bg-100: #FFFFFF;
+  --bg-200: #E8ECF1;
+  --bg-300: #D1D9E3;
+  --text-100: #0F172A;
+  --text-200: #1E293B;
+  --text-300: #64748B;
+  --text-400: #94A3B8;
+  --text-500: #CBD5E1;
+  --accent: #6366F1;
+  --accent-hover: #4F46E5;
+  --radius: 0.75rem;
+  --ease-silk: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark {
+  --bg-0: #0F172A;
+  --bg-000: #0F172A;
+  --bg-100: #1E293B;
+  --bg-200: #334155;
+  --bg-300: #475569;
+  --text-100: #F1F5F9;
+  --text-200: #E2E8F0;
+  --text-300: #CBD5E1;
+  --text-400: #94A3B8;
+  --text-500: #64748B;
+  --accent: #818CF8;
+  --accent-hover: #6366F1;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--bg-300);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-400);
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
