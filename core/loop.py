@@ -1,8 +1,8 @@
 import json
-from llm import llm
-from model import AgentState, UserProfile
-from search import web_search
-from prompts import TRIAGE_SYSTEM_PROMPT, RESPONSE_SYSTEM_PROMPT
+from core.llm import llm
+from core.model import AgentState, UserProfile
+from core.search import web_search
+from core.prompts import TRIAGE_SYSTEM_PROMPT, RESPONSE_SYSTEM_PROMPT
 
 class Agent:
     def __init__(self):
@@ -34,7 +34,7 @@ class Agent:
             state.user_profile.conditions.extend(plan_dict.get("extracted_entities").get("goals"))
 
             #remove duplicates by converting to set then converting to list again
-            state.user_profile.conditions = list(set(state.user.conditions))
+            state.user_profile.conditions = list(set(state.user_profile.conditions))
             state.user_profile.allergies = list(set(state.user_profile.allergies))
             state.user_profile.goals = list(set(state.user_profile.goals))
             
