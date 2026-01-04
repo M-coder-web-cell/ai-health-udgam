@@ -8,12 +8,34 @@ class Agent:
     def __init__(self):
         self.llm = llm(model_name="gemini-flash-lite-latest")
 
+
+
     def _parse_json(self, text: str):
         clean_text = text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean_text)
 
     def step(self, state: AgentState) -> AgentState:
         current_input = state.user_query or state.image_data or ""
+
+        # Step- 0 : Image Processing
+        if state.image_data is None and getattr(state, "image_path", None):
+            try:
+                # analyze_product returns a dict; split OCR text + JSON
+                parsed_dict = analyze_product(state.image_path)
+
+                # Save raw JSON and OCR text
+                state.product_json = parsed_dict
+                state.image_data = json.dumps(parsed_dict, indent=2)
+
+            except Exception as e:
+                state.image_data = f"OCR/CV error: {e}"
+
+        # Decide current input for agent reasoning
+        if state.product_json:
+            current_input = json.dumps(state.product_json, indent=2)
+        else:
+            current_input = state.user_query or state.image_data or ""
+
 
         # Step 1: Infer
         try:
@@ -65,7 +87,7 @@ class Agent:
             state.reasoning = response_dict.get("reasoning")
             state.next_suggestion = response_dict.get("suggested_next_steps", [])
             state.conversation_summary = response_dict.get("conversation_summary", "")
-            
+
         except Exception as e:
             state.final_verdict = "INFO"
             state.reasoning = f"Synthesis error: {e}"

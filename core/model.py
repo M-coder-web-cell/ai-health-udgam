@@ -1,6 +1,16 @@
 # core/model.py
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict
+
+class ProductData(BaseModel):
+    """
+    Structured representation of a product extracted from CV / OCR layer.
+    """
+    product_name: Optional[str] = None
+    company_name: Optional[str] = None
+    IngredientList: List[str] = Field(default_factory=list)
+    NutritionFacts: Dict[str, str] = Field(default_factory=dict)
+    MarketingClaims: List[str] = Field(default_factory=list)
 
 class UserProfile(BaseModel):
     allergies: List[str] = []
