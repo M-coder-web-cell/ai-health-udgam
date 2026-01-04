@@ -2,11 +2,9 @@ python-dotenv
 google-genai
 pydantic
 exa_py
-fastapi
 opencv-python
 easyocr
-torch
+torch==2.3.0
+torchvision==0.18.1
 numpy
-openai
-python-dotenv
-uvicorn
+fastapi

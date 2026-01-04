@@ -3,8 +3,7 @@
 venv/
 env/
 __pycache__/
-*.pyc   
-
+*.pyc
 
 # --- Security (CRITICAL) ---
 # Never commit your API keys!
@@ -24,4 +23,3 @@ temp/
 
 # --- Streamlit ---
 .streamlit/secrets.toml
-venv/
