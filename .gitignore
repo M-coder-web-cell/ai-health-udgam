@@ -23,3 +23,7 @@ temp/
 
 # --- Streamlit ---
 .streamlit/secrets.toml
+
+server_storage/
+Testing/
+Testing
