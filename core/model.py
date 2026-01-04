@@ -21,6 +21,7 @@ class AgentState(BaseModel):
     user_query: str
     user_profile: UserProfile
     image_data: Optional[str] = None
+    image_path: Optional[str] = None
     
     # FIX: Add '= None' or '= []' to make these optional in the input
     plan: Optional[str] = None 
