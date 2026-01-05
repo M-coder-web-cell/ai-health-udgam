@@ -1,73 +1,78 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from core.model import AgentState
 from core.loop import Agent
 import uuid
 import os
+import json
 import uvicorn
 
 app = FastAPI()
 
-# --- 1. Fix CORS (Allow All Origins) ---
+# --- CORS Configuration ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins (localhost:3000, etc.)
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 agent = Agent()
 UPLOAD_DIR = "server_storage"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@app.post("/process", response_model=AgentState)
-async def process_agent(state: AgentState):
+@app.post("/process")
+async def process_agent(
+    # 1. Accept optional file upload
+    file: UploadFile = File(None), 
+    # 2. Accept the JSON state as a raw string form field
+    state_json: str = Form(...)    
+):
     """
-    Main Brain Endpoint:
-    Receives JSON State -> Runs Agent Logic -> Returns Updated State
+    Unified Endpoint:
+    1. Parses 'state_json' string back into a Pydantic AgentState object.
+    2. If a file is provided, saves it and updates state.image_data with the path.
+    3. Runs the Agent Logic.
+    4. Returns the final JSON state.
     """
     try:
+        # A. Parse the JSON string into the Pydantic Model
+        try:
+            state_dict = json.loads(state_json)
+            state = AgentState(**state_dict)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid JSON state: {e}")
+
+        # B. Handle File Upload (Middleware Logic)
+        if file:
+            if not file.content_type.startswith("image/"):
+                raise HTTPException(status_code=400, detail="File must be an image")
+            
+            # Save file
+            extension = os.path.splitext(file.filename)[1]
+            unique_filename = f"{uuid.uuid4()}{extension}"
+            file_path = os.path.join(UPLOAD_DIR, unique_filename)
+            
+            with open(file_path, "wb") as buffer:
+                while content := await file.read(1024 * 1024):
+                    buffer.write(content)
+            
+            # C. Update State: Inject the path so the Agent can read it
+            # This ensures core/loop.py can access the file at this path
+            state.image_path = file_path
+            
+        # D. Run the Agent "Brain"
         updated_state = agent.step(state)
+        
         return updated_state
+
     except Exception as e:
-        print(f"Error in /process: {e}") # Log error to terminal for debugging
+        print(f"Server Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/upload")
-async def upload_to_disk(file: UploadFile = File(...)):
-    """
-    Simple Image Upload Endpoint.
-    1. Receives image file.
-    2. Saves to 'server_storage/'.
-    3. Returns the local file path.
-    """
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image")
-
-    extension = os.path.splitext(file.filename)[1]
-    unique_filename = f"{uuid.uuid4()}{extension}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
-
-    try:
-        with open(file_path, "wb") as buffer:
-            while content := await file.read(1024 * 1024):  # Read in 1MB chunks
-                buffer.write(content)
-        
-
-        return {"filename": unique_filename, "path": file_path}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to upload: {e}")
-
 
 if __name__ == "__main__":
     try:
-        # Changed host to 127.0.0.1 for better Windows compatibility sometimes, 
-        # but 0.0.0.0 is fine if you need external access.
         uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
     except KeyboardInterrupt:
-        print("\nStopping AI-Health-Udgam server gracefully...")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
+        print("\nStopping Server...")

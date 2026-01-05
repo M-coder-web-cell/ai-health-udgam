@@ -14,20 +14,33 @@ if not GOOGLE_API_KEY:
 # 1. Initialize the new GenAI Client
 client = genai.Client(api_key=GOOGLE_API_KEY)
 
+
 SYSTEM_PROMPT = """
-You are an information extraction system.
-Extract the following fields from OCR text of a food package:
-- product_name
-- company_name
-- IngredientList
-- NutritionFacts
-- MarketingClaims
+You are a Forensic OCR Analyst for food safety. 
+Your task is to extract structured data from messy, noisy OCR text.
 
-Rules:
-- Output ONLY valid JSON.
-- If a field is missing, return empty string.
+**OCR Text:**
+{ocr_text}
+
+**Instructions:**
+1. **Aggressive Autocorrect:** The OCR text contains errors (e.g., "Miik" -> "Milk", "Peanui" -> "Peanut", "Sodiune" -> "Sodium"). You MUST correct these based on context.
+2. **Nutrition Parsing:** Do NOT return the raw Nutrition text. Extract specific values into a dictionary (e.g., "Protein": "22g").
+3. **Ingredient Extraction:** Look for keywords like "Ingredients:", "Contains:", or lists of food items. Extract them into a clean list.
+
+**Output strictly in JSON:**
+{{
+  "product_name": "Inferred Name (or empty)",
+  "company_name": "Inferred Company (or empty)",
+  "IngredientList": ["Corrected Ingredient 1", "Corrected Ingredient 2"],
+  "NutritionFacts": {{
+    "Calories": "Value",
+    "Protein": "Value",
+    "Total Fat": "Value",
+    "Total Sugars": "Value"
+  }},
+  "MarketingClaims": ["Claim 1", "Claim 2"]
+}}
 """
-
 def parse_with_gemini(ocr_text: str) -> dict:
     # 2. Use the new models.generate_content syntax
     response = client.models.generate_content(
