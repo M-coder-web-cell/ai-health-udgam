@@ -35,6 +35,10 @@ def init_db():
     """
     Base.metadata.create_all(bind=engine)
 
+
+#yeild and depends work together, depends is an automated fastapi tool that executes Depends(get_db()) and executes until yeild
+#then handovers the session to the route using argument
+#Once your route sends a response (or crashes), Depends goes back to get_db and runs the code after the yield (the finally block).
 def get_db():
     #it opens a dedicated database session for incoming requests and yeilds the session object to the routehandler
     #finally block ensures that the session is closed after the request has been served so that no open or
