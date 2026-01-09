@@ -1,5 +1,3 @@
-# a python list ['dust', 'pollen'] is converted into a json string ['dust', 'pollen'] before saving to database --> serialization logic
-
 from sqlalchemy import create_engine, Column, String, Text
 from sqlalchemy.orm import sessionmaker, declarative_base
 
@@ -18,6 +16,12 @@ class User(Base):
     name = Column(String)
     picture = Column(String)
 
+
+    # SERIALIZATION LOGIC:
+    # SQL databases (like SQLite) cannot store Python Lists (e.g., ['dust', 'pollen']) directly.
+    # Solution: We store them as Text strings containing JSON.
+    #   - Save: json.dumps(['dust']) -> "['dust']"
+    #   - Load: json.loads("['dust']") -> ['dust']
     allergies = Column(Text, default = "[]")
     conditions = Column(Text, default = "[]")
 
