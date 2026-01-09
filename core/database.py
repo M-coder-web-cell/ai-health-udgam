@@ -27,11 +27,21 @@ class User(Base):
 
 
 def init_db():
+    """
+    The Architect:
+    Scans all classes inheriting from 'Base' (like User) and creates 
+    the actual SQL tables if they don't exist yet.
+    Must be called once on app startup.
+    """
     Base.metadata.create_all(bind=engine)
 
 def get_db():
+    #it opens a dedicated database session for incoming requests and yeilds the session object to the routehandler
+    #finally block ensures that the session is closed after the request has been served so that no open or
+    # hanging connections can crash the server
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
