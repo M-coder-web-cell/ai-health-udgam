@@ -9,3 +9,7 @@ torchvision==0.18.1
 numpy
 fastapi
 python-multipart
+Authlib
+httpx
+starlette
+itsdangerous
