@@ -13,3 +13,4 @@ Authlib
 httpx
 starlette
 itsdangerous
+sqlalchemy
