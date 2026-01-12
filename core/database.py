@@ -36,6 +36,7 @@ class ChatHistory(Base):
     user_query = Column(Text)        
     ai_response = Column(Text)       
     verdict = Column(String)         
+    chat_summary = Column(String)    #compiled summary till that point, to be added in next query
     image_path = Column(String, nullable=True) 
     
     timestamp = Column(DateTime, default=datetime.utcnow)
