@@ -26,23 +26,33 @@ class User(Base):
     allergies = Column(Text, default = "[]")
     conditions = Column(Text, default = "[]")
 
-class ChatHistory(Base):
-    __tablename__ = "chat_history"
 
+#the message storing will contain two parts 
+#1.session-container - stores the session chat name and messages linked to it
+#message table which will have the session id as a foreign key to link it to the session
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
     id = Column(Integer, primary_key=True, index=True)
-
     user_id = Column(String, ForeignKey("users.id"))
-    
-    user_query = Column(Text)        
-    ai_response = Column(Text)       
-    verdict = Column(String)         
-    chat_summary = Column(String)    #compiled summary till that point, to be added in next query
-    image_path = Column(String, nullable=True) 
-    
-    timestamp = Column(DateTime, default=datetime.utcnow)
 
-    user = relationship("User", back_populates="chats")
+    title = Column(String, default="New Scan") # e.g., "Scan: Granola Bar"
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+    user = relationship("User", back_populates="sessions")
+    messages = relationship("ChatMessage", back_populates="session")
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("chat_sessions.id"))
+    
+    # The actual interaction pair
+    human_msg = Column(Text)
+    ai_msg = Column(Text)
+    verdict = Column(String) 
+    
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    session = relationship("ChatSession", back_populates="messages")
 
 def init_db():
     """
