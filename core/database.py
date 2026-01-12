@@ -1,5 +1,6 @@
-from sqlalchemy import create_engine, Column, String, Text
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import create_engine, Column, String, Text, Integer, ForeignKey, DateTime
+from sqlalchemy.orm import sessionmaker, declarative_base, relationship
+import datetime
 
 
 DATABASE_URL =""
@@ -24,6 +25,22 @@ class User(Base):
     #   - Load: json.loads("['dust']") -> ['dust']
     allergies = Column(Text, default = "[]")
     conditions = Column(Text, default = "[]")
+
+class ChatHistory(Base):
+    __tablename__ = "chat_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(String, ForeignKey("users.id"))
+    
+    user_query = Column(Text)        
+    ai_response = Column(Text)       
+    verdict = Column(String)         
+    image_path = Column(String, nullable=True) 
+    
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="chats")
 
 
 def init_db():
