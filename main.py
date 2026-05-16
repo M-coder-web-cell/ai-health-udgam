@@ -77,27 +77,13 @@ async def logout(request: Request):
 @app.post("/process")
 async def process_agent(
     request: Request,
-    file: UploadFile = File(None), 
-    state_json: str = Form(...)
+    state : AgentState
 ):
     user = request.session.get('user')
     user_email = user.get('email') if user else "Guest"
     print(f"Processing request for: {user_email}")
 
-    try:
-        state_dict = json.loads(state_json)
-        state = AgentState(**state_dict)
-        
-        if file:
-            extension = os.path.splitext(file.filename)[1]
-            unique_filename = f"{uuid.uuid4()}{extension}"
-            file_path = os.path.join(UPLOAD_DIR, unique_filename)
-            
-            with open(file_path, "wb") as buffer:
-                while content := await file.read(1024 * 1024):
-                    buffer.write(content)
-            state.image_data = file_path
-            
+    try:     
         updated_state = agent.step(state)
         return updated_state
 

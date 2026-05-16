@@ -9,8 +9,7 @@ def web_search(query):
     result = exa.stream_answer(
         query,
         text=True,
-    )
-    
+    )   
     full_response = []
     for chunk in result:
         # Collect chunks to return as a full string
