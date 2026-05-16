@@ -1,4 +1,5 @@
 import json
+import base64
 from core.llm import llm
 from core.model import AgentState, UserProfile
 from core.search import web_search
