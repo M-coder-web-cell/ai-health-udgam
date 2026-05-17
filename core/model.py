@@ -20,6 +20,7 @@ class UserProfile(BaseModel):
 class AgentState(BaseModel):
     user_query: str
     user_profile: UserProfile
+    image_path: str
     image_encodedstr: Optional[str] = None
     product_json: ProductData = None
     
