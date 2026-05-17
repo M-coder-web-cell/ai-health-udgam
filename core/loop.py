@@ -1,9 +1,8 @@
 import json
-import base64
 from core.llm import llm
 from core.model import AgentState, UserProfile
 from core.search import web_search
-from core.prompts import REACT_SYSTEM_PROMPT # Replace prior prompts with a unified one
+from core.prompts import REACT_SYSTEM_PROMPT 
 from cv_layer.cv_extract import analyze_product
 
 class Agent:
@@ -33,10 +32,8 @@ class Agent:
             else:
                 product_data_str = json.dumps(state.product_json, indent=2)
 
-        # Establish current input context
         current_input = state.user_query or state.image_data or ""
 
-        # Initialize local execution state for the ReAct loop
         search_history = []
         max_iterations = 3 
         
