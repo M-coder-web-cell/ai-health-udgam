@@ -12,8 +12,7 @@ class Agent:
         self.llm = llm(model_name="gemini-flash-lite-latest")
 
     def _parse_json(self, text: str):
-        clean_text = text.replace("```json", "").replace("
-```", "").strip()
+        clean_text = text.replace("```json", "").replace("```", "").strip()
         return json.loads(clean_text)
 
     def step(self, state: AgentState) -> AgentState:
