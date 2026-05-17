@@ -1,6 +1,6 @@
 import json
 from core.llm import llm
-from core.model import AgentState, UserProfile
+from core.model import AgentState
 from core.search import web_search
 from core.prompts import REACT_SYSTEM_PROMPT 
 from cv_layer.cv_extract import analyze_product
