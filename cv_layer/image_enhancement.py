@@ -20,6 +20,6 @@ def enhance_image(image_path):
     blurred = cv2.GaussianBlur(denoised, (0, 0), 1.0)
     sharpened = cv2.addWeighted(denoised, 1.5, blurred, -0.5, 0)
 
-    # 4️⃣ Convert back to RGB
-    enhanced = cv2.cvtColor(sharpened, cv2.COLOR_BGR2RGB)
+    # 4️⃣ Convert back to RGB from grayscale
+    enhanced = cv2.cvtColor(sharpened, cv2.COLOR_GRAY2RGB)
     return enhanced

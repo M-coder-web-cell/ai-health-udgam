@@ -11,6 +11,9 @@ reader = easyocr.Reader(['en'], gpu=False)
 
 def extract_text_from_image(image_path: str) -> str:
     img = cv2.imread(image_path)
+    if img is None:
+        raise FileNotFoundError(f"Image not found or unreadable: {image_path}")
+
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     results = reader.readtext(img_rgb)

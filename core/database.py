@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 import datetime
 
 
-DATABASE_URL =""
+DATABASE_URL = "sqlite:///./udgam.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -25,6 +25,8 @@ class User(Base):
     #   - Load: json.loads("['dust']") -> ['dust']
     allergies = Column(Text, default = "[]")
     conditions = Column(Text, default = "[]")
+
+    sessions = relationship("ChatSession", back_populates="user")
 
 
 #the message storing will contain two parts 
