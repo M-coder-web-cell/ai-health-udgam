@@ -1,7 +1,9 @@
 import json
 import time
 import os
+import traceback
 from kafka import KafkaConsumer
+from kafka.errors import KafkaError
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -62,55 +64,141 @@ class KGBuilderConsumer:
         self.bootstrap_servers = bootstrap_servers
         self.topic = topic
         self.graph_manager = HealthGraphManager()
-        self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        self.consumer = None
+        
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable not set")
+        self.client = genai.Client(api_key=api_key)
+        
+        print(f"\n[KGConsumer] ===== INITIALIZED =====")
+        print(f"[KGConsumer] Topic: {self.topic}")
+        print(f"[KGConsumer] Bootstrap Servers: {self.bootstrap_servers}")
+        print(f"[KGConsumer] Group ID: kg-builder-group")
+        print(f"[KGConsumer] Auto Offset Reset: earliest (CHANGED FROM latest)")
+        print(f"[KGConsumer] ========================\n")
+        self._init_consumer()
 
-    def run_once(self):
-        print(f"[KGConsumer] Connecting to Kafka at {self.bootstrap_servers}...")
-        consumer = None
-        while not consumer:
+    def _init_consumer(self):
+        """Initialize Kafka consumer with retry logic"""
+        retry_count = 0
+        max_retries = 10
+        while retry_count < max_retries:
             try:
-                consumer = KafkaConsumer(
+                print(f"[KGConsumer] Attempting connection to Kafka (attempt {retry_count + 1}/{max_retries})...")
+                self.consumer = KafkaConsumer(
                     self.topic,
                     bootstrap_servers=self.bootstrap_servers,
                     group_id='kg-builder-group',
-                    auto_offset_reset='latest',
-                    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+                    auto_offset_reset='earliest',  # CHANGED: from 'latest' to 'earliest'
+                    value_deserializer=lambda m: json.loads(m.decode('utf-8')),
+                    session_timeout_ms=30000,
+                    request_timeout_ms=60000
                 )
-                print(f"[KGConsumer] Connected successfully to topic '{self.topic}'.")
+                print(f"[KGConsumer] ✓ Connected successfully to Kafka.")
+                print(f"[KGConsumer] Subscribed to topic: {self.topic}\n")
+                return
+            except KafkaError as ke:
+                print(f"[KGConsumer] ✗ Kafka connection error: {ke}")
+                retry_count += 1
+                if retry_count < max_retries:
+                    wait_time = min(5 * retry_count, 30)
+                    print(f"[KGConsumer] Retrying in {wait_time}s...\n")
+                    time.sleep(wait_time)
             except Exception as e:
-                print(f"[KGConsumer] Connection failed: {e}. Retrying in 5s...")
-                time.sleep(5)
+                print(f"[KGConsumer] ✗ Unexpected error during connection: {e}")
+                traceback.print_exc()
+                retry_count += 1
+                if retry_count < max_retries:
+                    time.sleep(5)
+        
+        raise RuntimeError(f"Failed to connect to Kafka after {max_retries} attempts")
 
+    def run_once(self):
+        """Single poll cycle - reuse persistent consumer connection"""
+        if not self.consumer:
+            raise RuntimeError("Consumer not initialized")
+        
         try:
-            msg_pack = consumer.poll(timeout_ms=1000)
+            print("[KGConsumer] Polling for messages (timeout: 5000ms)...")
+            msg_pack = self.consumer.poll(timeout_ms=5000, max_records=10)
+            
+            if not msg_pack:
+                print("[KGConsumer] No messages received in this poll cycle.")
+                return
+            
+            message_count = sum(len(messages) for messages in msg_pack.values())
+            print(f"[KGConsumer] ✓ Received {message_count} message(s)")
+            
             for topic_partition, messages in msg_pack.items():
-                for message in messages:
-                    payload = message.value
-                    print(f"[KGConsumer] Received message: {payload.get('session_id')}")
-                    self._process_message(payload)
-        finally:
-            consumer.close()
+                print(f"[KGConsumer] Processing partition {topic_partition}...")
+                for idx, message in enumerate(messages, 1):
+                    try:
+                        payload = message.value
+                        session_id = payload.get('session_id')
+                        user_email = payload.get('user_email')
+                        print(f"[KGConsumer] [Message {idx}] session_id={session_id}, user={user_email}")
+                        self._process_message(payload)
+                    except Exception as msg_err:
+                        print(f"[KGConsumer] ✗ Error processing message {idx}: {msg_err}")
+                        traceback.print_exc()
+        except KafkaError as ke:
+            print(f"[KGConsumer] ✗ Kafka error during poll: {ke}")
+            traceback.print_exc()
+        except Exception as e:
+            print(f"[KGConsumer] ✗ Unexpected error in run_once: {e}")
+            traceback.print_exc()
 
     def run_forever(self):
-        while True:
+        """Main loop - continuous polling with error recovery"""
+        print("\n[KGConsumer] ===== STARTING CONSUMER LOOP =====")
+        poll_count = 0
+        try:
+            while True:
+                poll_count += 1
+                print(f"\n[KGConsumer] === Poll Cycle {poll_count} ===")
+                try:
+                    self.run_once()
+                    time.sleep(2)
+                except KeyboardInterrupt:
+                    print("\n[KGConsumer] Received KeyboardInterrupt. Shutting down...")
+                    break
+                except Exception as e:
+                    print(f"[KGConsumer] ✗ Error in consume loop: {e}")
+                    traceback.print_exc()
+                    time.sleep(5)
+        finally:
+            self._cleanup()
+
+    def _cleanup(self):
+        """Clean shutdown"""
+        print("\n[KGConsumer] Cleaning up...")
+        if self.consumer:
             try:
-                self.run_once()
-                time.sleep(1)
-            except KeyboardInterrupt:
-                print("[KGConsumer] Stopping on KeyboardInterrupt.")
-                break
+                self.consumer.close()
+                print("[KGConsumer] ✓ Consumer closed successfully")
             except Exception as e:
-                print(f"[KGConsumer] Error in consume loop: {e}")
-                time.sleep(2)
+                print(f"[KGConsumer] ✗ Error closing consumer: {e}")
 
     def _process_message(self, payload):
+        """Process a single Kafka message and extract relationships"""
         try:
+            # Validate required fields
             user_id = payload.get("user_email") or "Guest"
             user_query = payload.get("user_query") or ""
+            session_id = payload.get('session_id')
+            
+            print(f"[KGConsumer] Processing: user_id={user_id}, session_id={session_id}")
+            
+            if not user_query:
+                print("[KGConsumer] ✗ Missing user_query in payload. Skipping.")
+                return
+            
             user_profile = payload.get("user_profile") or {"allergies": [], "conditions": [], "goals": []}
             product_json = payload.get("product_json") or {}
 
             # Format the prompt
+            print(f"[KGConsumer] Formatting LLM extraction prompt...")
             prompt = KG_EXTRACT_PROMPT.format(
                 user_id=user_id,
                 user_query=user_query,
@@ -119,6 +207,7 @@ class KGBuilderConsumer:
             )
 
             # Generate extraction using Gemini
+            print(f"[KGConsumer] Calling Gemini API for relationship extraction...")
             response = self.client.models.generate_content(
                 model="gemini-flash-lite-latest",
                 contents=prompt,
@@ -129,12 +218,14 @@ class KGBuilderConsumer:
             )
 
             result_text = response.text.replace("```json", "").replace("```", "").strip()
+            print(f"[KGConsumer] ✓ Received Gemini response")
+            
             result_dict = json.loads(result_text)
-
             relationships = result_dict.get("relationships", [])
-            print(f"[KGConsumer] Parsed {len(relationships)} relationships from LLM.")
+            print(f"[KGConsumer] ✓ Parsed {len(relationships)} relationships from LLM")
 
             # Load into Graph
+            rel_count = 0
             for rel in relationships:
                 source_id = rel.get("source_id")
                 source_type = rel.get("source_type")
@@ -143,9 +234,11 @@ class KGBuilderConsumer:
                 rel_type = rel.get("relationship_type")
 
                 if not all([source_id, source_type, target_id, target_type, rel_type]):
+                    print(f"[KGConsumer] ⚠ Skipping malformed relationship: {rel}")
                     continue
 
-                # Add to NetworkX graph via manager
+                rel_count += 1
+                print(f"[KGConsumer] Adding relationship: {source_id} ({source_type}) -[{rel_type}]-> {target_id} ({target_type})")
                 self.graph_manager.add_relationship(
                     source_id=source_id,
                     source_type=source_type,
@@ -154,10 +247,15 @@ class KGBuilderConsumer:
                     rel_type=rel_type
                 )
             
-            print(f"[KGConsumer] Successfully processed KG extraction for {user_id}.")
+            print(f"[KGConsumer] ✓ Successfully added {rel_count} relationships to knowledge graph\n")
 
+        except json.JSONDecodeError as je:
+            print(f"[KGConsumer] ✗ JSON parsing error: {je}")
+            print(f"[KGConsumer] Response text: {response.text if 'response' in locals() else 'N/A'}")
+            traceback.print_exc()
         except Exception as e:
-            print(f"[KGConsumer] Error processing message: {e}")
+            print(f"[KGConsumer] ✗ Error processing message: {e}")
+            traceback.print_exc()
 
 if __name__ == "__main__":
     consumer = KGBuilderConsumer()

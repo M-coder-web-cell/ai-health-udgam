@@ -1,4 +1,7 @@
+# core/agent.py
+
 import json
+import re
 from core.llm import llm
 from core.model import AgentState
 from core.search import web_search
@@ -8,13 +11,35 @@ from knowledge_store.graph_manager import HealthGraphManager
 
 class Agent:
     def __init__(self):
-        # Using the requested model
+        # Initializing Gemini Flash Lite
         self.llm = llm(model_name="gemini-flash-lite-latest")
         self.graph_manager = HealthGraphManager()
 
-    def _parse_json(self, text: str):
-        clean_text = text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean_text)
+    def _parse_json(self, text: str) -> dict:
+        """
+        Robustly extracts and parses JSON out of mixed markdown text responses.
+        Handles text that contains reasoning blocks, code enclosures, or leading spaces.
+        """
+        if not text or not text.strip():
+            raise ValueError("The LLM engine provided an completely empty text payload.")
+
+        # Strip out the reasoning section if present to isolate raw JSON block context
+        clean_text = re.sub(r'<reasoning>.*?</reasoning>', '', text, flags=re.DOTALL).strip()
+
+        # Strip markdown syntax wrappers if model injected them
+        clean_text = clean_text.replace("```json", "").replace("```", "").strip()
+
+        try:
+            return json.loads(clean_text)
+        except json.JSONDecodeError:
+            # Fallback: Look for structural JSON markers if extra junk string exists
+            match = re.search(r'\{.*\}', clean_text, re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    pass
+            raise ValueError(f"Failed to isolate valid JSON configuration pattern. Raw trace: {text[:150]}")
 
     def step(self, state: AgentState, user_id: str = "Guest") -> AgentState:
         # Step-0: Image Processing (Stays synchronous before the loop)
@@ -23,6 +48,7 @@ class Agent:
                 parsed_dict, _ = analyze_product(state.image_path)
                 state.product_json = parsed_dict
                 state.image_data = json.dumps(parsed_dict, indent=2)
+                print("Product analysed successfully")
             except Exception as e:
                 state.image_data = f"OCR/CV error: {e}"
 
@@ -31,17 +57,18 @@ class Agent:
         if state.product_json:
             if hasattr(state.product_json, 'dict'):
                 product_data_str = json.dumps(state.product_json.dict(), indent=2)
+                print(f"[loop] productjson updated successfully")
             else:
                 product_data_str = json.dumps(state.product_json, indent=2)
+                
 
         current_input = state.user_query or state.image_data or ""
-
         search_history = []
-        max_iterations = 4  # Bumped slightly to allow deep graph traversal + search
+        max_iterations = 4
         
         for iteration in range(max_iterations):
             try:
-                # Format the prompt, feeding back any gathered search/graph results dynamically
+                # Format the prompt dynamically with cumulative tracking data
                 formatted_prompt = REACT_SYSTEM_PROMPT.format(
                     user_profile=state.user_profile,
                     user_input=current_input,
@@ -49,26 +76,39 @@ class Agent:
                     search_history="\n".join(search_history) if search_history else "No tool history yet."
                 )
 
-                # Single LLM Call per iteration
+                # Query the LLM
                 llm_response = self.llm.ask(formatted_prompt)
                 
-                # Check if the LLM wants to execute a tool (e.g., search) or finish
-                response_dict = self._parse_json(llm_response)
-                
-                # Update state profile information immediately if found in payload
+                # Robust extraction parsing block
+                try:
+                    response_dict = self._parse_json(llm_response)
+                except ValueError as json_err:
+                    print(f"[Iteration {iteration+1}] Validation Parsing Mistake: {json_err}")
+                    # Feed the structural issue back to the LLM so it auto-corrects on retry
+                    search_history.append(
+                        f"Iteration {iteration+1} - System Validation Error: Your output structure could not be parsed as valid JSON. "
+                        f"Ensure you don't output text outside of <reasoning> tags and a single clean JSON schema structure."
+                    )
+                    continue
+
+                # Process safely extracted entities
                 extracted = response_dict.get("extracted_entities", {})
                 if extracted:
-                    state.user_profile.allergies.extend(extracted.get("allergies", []))
-                    state.user_profile.conditions.extend(extracted.get("conditions", []))
-                    state.user_profile.goals.extend(extracted.get("goals", []))
+                    if isinstance(extracted.get("allergies"), list):
+                        state.user_profile.allergies.extend(extracted.get("allergies", []))
+                    if isinstance(extracted.get("conditions"), list):
+                        state.user_profile.conditions.extend(extracted.get("conditions", []))
+                    if isinstance(extracted.get("goals"), list):
+                        state.user_profile.goals.extend(extracted.get("goals", []))
                     
-                    # Deduplicate profile arrays
+                    # Deduplicate profile arrays safely
                     state.user_profile.conditions = list(set(state.user_profile.conditions))
                     state.user_profile.allergies = list(set(state.user_profile.allergies))
                     state.user_profile.goals = list(set(state.user_profile.goals))
 
-                # Check action path
+                # Route action payload execution
                 action = response_dict.get("action")
+                print(f"[Iteration {iteration+1}] Running action payload: {action}")
                 
                 if action == "get_user_subgraph":
                     subgraph_data = self.graph_manager.get_user_subgraph(user_id)
@@ -78,9 +118,9 @@ class Agent:
                     continue
 
                 elif action == "graph_path_search":
-                    # Check list of ingredients in response or fallback to product ingredients
                     ingredients = response_dict.get("ingredients")
                     if not ingredients and state.product_json:
+                        # Fallback query lookup default values
                         ingredients = state.product_json.get("IngredientList", [])
                     
                     paths = self.graph_manager.find_clinical_paths(user_id, ingredients or [])
@@ -104,21 +144,20 @@ class Agent:
                         search_history.append(
                             f"Iteration {iteration+1} - Tool: 'search' query: '{query}' -> Output:\n{raw_result}"
                         )
-                    continue  # Loop back to LLM with new data
+                    continue
                     
                 elif action == "final_response" or iteration == max_iterations - 1:
-                    # Capture final properties and terminate the loop
                     state.final_verdict = response_dict.get("verdict", "INFO")
-                    state.reasoning = response_dict.get("reasoning", "")
+                    state.reasoning = response_dict.get("reasoning", "Deduction completed successfully.")
                     state.next_suggestion = response_dict.get("suggested_next_steps", [])
                     state.conversation_summary = response_dict.get("conversation_summary", "")
                     state.search_results = "\n\n".join(search_history)
                     break
 
             except Exception as e:
-                print(f"Error during ReAct loop iteration {iteration}: {e}")
+                print(f"Critical execution fault during loop execution step {iteration}: {e}")
                 state.final_verdict = "INFO"
-                state.reasoning = f"Loop execution error: {e}"
+                state.reasoning = f"Loop execution unexpected runtime fault: {e}"
                 state.next_suggestion = []
                 break
 

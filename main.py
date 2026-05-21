@@ -1,7 +1,9 @@
 import os
 import json
+import time
+import asyncio
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth
@@ -95,15 +97,19 @@ async def process_agent(
     try:
         # Check if we should reuse or create a ChatSession
         # We can extract a custom body JSON to see if session_id is provided, otherwise create a new session
-        body = {}
+        # Prefer the parsed Pydantic `state`; avoid re-reading the request body stream
+        session_id = None
         try:
-            body = await request.json()
-        except:
-            pass
+            session_id = getattr(state, "session_id", None)
+        except Exception:
+            session_id = None
 
-        session_id = body.get("session_id")
-        img_encodedstr = body.get("image_encodedstr")
-        state.image_path = saveToFile(img_encodedstr)
+        img_encodedstr = getattr(state, "image_encodedstr", None)
+        if img_encodedstr:
+            try:
+                state.image_path = saveToFile(img_encodedstr)
+            except Exception as e:
+                print(f"Image save error: {e}")
 
         if not session_id:
             db_session = ChatSession(
@@ -182,6 +188,57 @@ async def get_session_messages(session_id: int):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+
+
+@app.get("/stream/session/{session_id}")
+async def stream_session_messages(session_id: int):
+    """
+    Server-Sent Events (SSE) endpoint that streams message updates in real-time.
+    Client connects and receives events as the consumer updates the database.
+    """
+    async def event_generator():
+        last_check = {}
+        max_timeout = 300  # 5 minutes
+        start_time = time.time()
+        
+        while time.time() - start_time < max_timeout:
+            db = SessionLocal()
+            try:
+                messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.timestamp.asc()).all()
+                
+                for msg in messages:
+                    msg_key = msg.id
+                    msg_data = {
+                        "id": msg.id,
+                        "human_msg": msg.human_msg,
+                        "ai_msg": msg.ai_msg,
+                        "verdict": msg.verdict,
+                        "timestamp": msg.timestamp.isoformat() if msg.timestamp else None
+                    }
+                    
+                    # Only send if data changed (avoids duplicate events)
+                    if msg_key not in last_check or last_check[msg_key] != msg_data:
+                        last_check[msg_key] = msg_data
+                        yield f"data: {json.dumps(msg_data)}\n\n"
+                        
+                        # If message has been completed (ai_msg populated), allow stream to close
+                        if msg.ai_msg and msg.verdict:
+                            yield "event: done\ndata: {}\n\n"
+                            return
+                
+            except Exception as e:
+                print(f"[SSE] Error in event_generator: {e}")
+                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+            finally:
+                db.close()
+            
+            # Poll DB every 1 second for updates
+            await asyncio.sleep(1)
+        
+        # Timeout reached
+        yield "event: timeout\ndata: {}\n\n"
+    
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 if __name__ == "__main__":
