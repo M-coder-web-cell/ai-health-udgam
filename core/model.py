@@ -13,24 +13,24 @@ class ProductData(BaseModel):
     MarketingClaims: List[str] = Field(default_factory=list)
 
 class UserProfile(BaseModel):
-    allergies: List[str] = []
-    conditions: List[str] = []
-    goals: List[str] = []
+    allergies: List[str] = Field(default_factory=list)
+    conditions: List[str] = Field(default_factory=list)
+    goals: List[str] = Field(default_factory=list)
 
 class AgentState(BaseModel):
     user_query: str
     user_profile: UserProfile
-    image_path: str
+    image_data: Optional[ProductData] = None
+    image_path: Optional[str] = None
     image_encodedstr: Optional[str] = None
-    product_json: ProductData = None
-    
-    # FIX: Add '= None' or '= []' to make these optional in the input
+    product_json: Optional[ProductData] = None
+
     plan: Optional[str] = None 
     search_needed: bool = False
-    search_queries: List[str] = []
+    search_queries: List[str] = Field(default_factory=list)
     search_results: Optional[str] = None
     
     final_verdict: Optional[str] = None
     reasoning: Optional[str] = None
-    next_suggestion: List[str] = [] # Defaults to empty list
+    next_suggestion: List[str] = Field(default_factory=list)
     conversation_summary: Optional[str] = None
