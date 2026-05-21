@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth
 import uvicorn
+from utilities.base64Utils import saveToFile
 
 # Imports from core
 from core.model import AgentState
@@ -101,6 +102,9 @@ async def process_agent(
             pass
 
         session_id = body.get("session_id")
+        img_encodedstr = body.get("image_encodedstr")
+        state.image_path = saveToFile(img_encodedstr)
+
         if not session_id:
             db_session = ChatSession(
                 user_id=user_id,
